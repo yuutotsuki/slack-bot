@@ -4,6 +4,8 @@
   "main": "slack-bot.ts",
   "scripts": {
     "start": "tsx slack-bot.ts",
+    "start:personal": "cross-env ENV=personal tsx slack-bot.ts",
+    "start:company": "cross-env ENV=company tsx slack-bot.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -17,6 +19,7 @@
     "openai": "^4.52.7"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }

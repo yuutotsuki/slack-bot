@@ -1,3 +1,10 @@
+// これに変更！
+import dotenv from 'dotenv';
+const envPath = `.env.${process.env.ENV || 'personal'}`;
+dotenv.config({ path: envPath });
+console.log(`✅ [handleSlackMessage.ts] .env ファイル読み込み: ${envPath}`);
+
+
 import { SayFn } from '@slack/bolt';
 import OpenAI from 'openai';
 import {
@@ -61,7 +68,7 @@ export async function handleSlackMessage(message: any, say: SayFn) {
   console.log('[handleSlackMessage] OpenAI response text:', text);
 
   if (/下書きが作成|送信しました|ラベルを追加|保存しました/.test(text)) {
-    await say('✅ Gmail 操作を完了したよ！\n\n' + text + '\n\n💬 必要なら更に続けて指示してね。');
+    await say('✅ Gmail 操作を完了したよ！\n\n' + text + '\n\n💬 必要なら書き続けて指示してね。');
     clearHistory(userId);
   } else if (/認証|エラー/.test(text)) {
     await say('⚠️ エラーかも…トークンや権限を確認してね。');
@@ -76,4 +83,4 @@ function isStartMessage(message: any, userId: string): boolean {
   const hasKeyword = /(下書き|送信|ラベル|メール)/.test(text);
   const noHistory = !getHistory(userId) || getHistory(userId).length === 0;
   return hasKeyword || noHistory;
-} 
+}
