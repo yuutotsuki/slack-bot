@@ -1,9 +1,7 @@
-// これに変更！
 import dotenv from 'dotenv';
 const envPath = `.env.${process.env.ENV || 'personal'}`;
 dotenv.config({ path: envPath });
 console.log(`✅ [handleSlackMessage.ts] .env ファイル読み込み: ${envPath}`);
-
 
 import { SayFn } from '@slack/bolt';
 import OpenAI from 'openai';
@@ -16,7 +14,6 @@ import {
 import { getMcpTool } from './getMcpTool';
 import { buildSystemPrompt } from './promptBuilder';
 import axios from 'axios';
-import process from 'process';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
