@@ -6,7 +6,8 @@
     "start": "tsx slack-bot.ts",
     "start:personal": "cross-env ENV=personal tsx slack-bot.ts",
     "start:company": "cross-env ENV=company tsx slack-bot.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",
