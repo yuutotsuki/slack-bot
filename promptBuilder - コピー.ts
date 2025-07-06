@@ -57,7 +57,6 @@ export function buildSystemPrompt(firstLine: string): string {
 ■ 出力と対応言語
 
 - すべての出力・応答は日本語で行ってください。
-- メール本文を提案する際は、必ず末尾に「draftId: <ユニークID>」を付与してください。
 
 ---
 ■ ユーザーからの最新指示
