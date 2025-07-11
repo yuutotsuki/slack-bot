@@ -3,14 +3,6 @@ const envPath = `.env.${process.env.ENV || 'personal'}`;
 dotenv.config({ path: envPath });
 console.log(`✅ [handleSlackMessage.ts] .env ファイル読み込み: ${envPath}`);
 
-// 環境変数読み込み後の確認ログ（セキュリティ考慮）
-console.log('🔍 [handleSlackMessage.ts] 環境変数読み込み確認:');
-console.log('  - ENV:', process.env.ENV);
-console.log('  - NODE_ENV:', process.env.NODE_ENV);
-console.log('  - CONNECT_TOKEN_URL:', process.env.CONNECT_TOKEN_URL);
-console.log('  - OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? '設定済み' : '未設定');
-console.log('  - PIPEDREAM_PROJECT_ID:', process.env.PIPEDREAM_PROJECT_ID ? '設定済み' : '未設定');
-
 import { SayFn } from '@slack/bolt';
 import OpenAI from 'openai';
 import {
@@ -31,29 +23,11 @@ async function fetchConnectToken(): Promise<string> {
   if (cachedToken) {
     return cachedToken;
   }
-  
-  // 環境変数のデバッグ用ログ（セキュリティ考慮）
-  console.log('🔍 [fetchConnectToken] 環境変数確認:');
-  console.log('  - CONNECT_TOKEN_URL:', process.env.CONNECT_TOKEN_URL);
-  console.log('  - ENV:', process.env.ENV);
-  console.log('  - NODE_ENV:', process.env.NODE_ENV);
-  
   const connectTokenUrl =
     process.env.CONNECT_TOKEN_URL || 'http://localhost:3001/connect-token';
-  
-  console.log('🔗 [fetchConnectToken] 使用するURL:', connectTokenUrl);
-  
-  try {
-    const res = await axios.get(connectTokenUrl);
-    cachedToken = res.data.token;
-    console.log('✅ [fetchConnectToken] トークン取得成功');
-    return cachedToken;
-  } catch (error: any) {
-    console.error('❌ [fetchConnectToken] トークン取得エラー:', error.message);
-    console.error('  - ステータス:', error.response?.status);
-    console.error('  - レスポンス:', error.response?.data);
-    throw error;
-  }
+  const res = await axios.get(connectTokenUrl);
+  cachedToken = res.data.token;
+  return cachedToken;
 }
 
 // =============================
