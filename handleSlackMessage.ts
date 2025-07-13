@@ -76,6 +76,7 @@ function generateDraftId(): string {
 }
 
 export async function handleSlackMessage(message: any, say: SayFn) {
+  console.log("📩 Step 1: Slackからメッセージを受信しました", message);
   const userId = message.user;
   if (!userId || message.subtype === 'bot_message') return;
 
@@ -89,19 +90,31 @@ export async function handleSlackMessage(message: any, say: SayFn) {
     appendToHistory(userId, `\n---\n${message.text}\n---`);
   }
 
-  const token = await fetchConnectToken();
+  let token: string;
+  try {
+    console.log("🔐 Step 2: connect-token-server へ fetchConnectToken 開始");
+    token = await fetchConnectToken();
+    console.log("🔑 Step 3: トークン取得成功", token);
+  } catch (error: any) {
+    console.error('❌ [fetchConnectToken] トークン取得エラー:', error);
+    await say('⚠️ connect-token-server からトークン取得に失敗しました: ' + (error.message || error.toString()));
+    return;
+  }
 
   const gmailTool = getMcpTool('gmail', token);
   const calendarTool = getMcpTool('calendar', token);
 
   let response;
   try {
+    console.log("📡 Step 4: OpenAI に問い合わせ開始");
     response = await openai.responses.create({
       model: 'gpt-4.1',
       input: getHistory(userId).join('\n'),
       tools: [gmailTool, calendarTool],
     });
+    console.log("✅ Step 5: OpenAI 応答を受信", response);
   } catch (e: any) {
+    console.error("❌ [OpenAI APIエラー]", e);
     await say('⚠️ OpenAI APIエラー: ' + (e.message || e.toString()));
     return;
   }
@@ -220,7 +233,10 @@ async function createGmailDraft(token: string, draft: DraftData) {
     body: draft.body,
     threadId: draft.threadId,
   };
-  return axios.post(url, data, { headers });
+  console.log("🚀 Step 6: Gmail 下書き作成リクエスト開始");
+  const res = await axios.post(url, data, { headers });
+  console.log("✅ Step 7: Gmail 下書き作成リクエスト成功", res.data);
+  return res;
 }
 
 async function sendGmailMail(token: string, draft: DraftData) {
@@ -239,5 +255,8 @@ async function sendGmailMail(token: string, draft: DraftData) {
     body: draft.body,
     threadId: draft.threadId,
   };
-  return axios.post(url, data, { headers });
+  console.log("🚀 Step 6: Gmail メール送信リクエスト開始");
+  const res = await axios.post(url, data, { headers });
+  console.log("✅ Step 7: Gmail メール送信リクエスト成功", res.data);
+  return res;
 }
