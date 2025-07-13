@@ -7,7 +7,7 @@ const envPath = `.env.${process.env.ENV || 'personal'}`;
 dotenv.config({ path: envPath });
 console.log(`✅ .env ファイル読み込み: ${envPath}`);
 
-import { App } from '@slack/bolt';
+import { App, LogLevel } from '@slack/bolt';
 import { handleSlackMessage } from './handleSlackMessage';
 
 const app = new App({
@@ -15,6 +15,8 @@ const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
   socketMode: true,
   appToken: process.env.SLACK_APP_TOKEN,
+  developerMode: false, // 明示的に追加
+  logLevel: LogLevel.DEBUG, // 詳細ログ
 });
 
 // WebSocket接続状態の監視ログを追加（app.receiver.clientを利用）
