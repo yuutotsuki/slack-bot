@@ -17,6 +17,31 @@ const app = new App({
   appToken: process.env.SLACK_APP_TOKEN,
 });
 
+// WebSocket接続状態の監視ログを追加（app.receiver.clientを利用）
+const socketModeClient = (app as any).receiver?.client;
+if (socketModeClient) {
+  socketModeClient.on("disconnect", (error: any) => {
+    console.warn("🛑 WebSocket disconnected:", error?.reason || error);
+  });
+
+  socketModeClient.on("connecting", () => {
+    console.log("🔄 WebSocket reconnecting...");
+  });
+
+  socketModeClient.on("connected", () => {
+    console.log("✅ WebSocket reconnected!");
+  });
+
+  socketModeClient.on("error", (err: any) => {
+    console.error("🚨 WebSocket error:", err);
+  });
+
+  setInterval(() => {
+    const connected = socketModeClient.connected ?? false;
+    console.log("📶 WS isConnected:", connected);
+  }, 5 * 60 * 1000);
+}
+
 app.message(async ({ message, say }) => {
   await handleSlackMessage(message, say);
 });
