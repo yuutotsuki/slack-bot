@@ -26,10 +26,22 @@ import axios from 'axios';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 let cachedToken: string = '';
+let tokenExpiry: number = 0; // トークンの有効期限（UNIXタイムスタンプ）
 
 async function fetchConnectToken(): Promise<string> {
-  if (cachedToken) {
+  const now = Date.now();
+  
+  // トークンが存在し、有効期限が切れていない場合はキャッシュを使用
+  if (cachedToken && now < tokenExpiry) {
+    console.log('🔄 [fetchConnectToken] キャッシュされたトークンを使用');
     return cachedToken;
+  }
+  
+  // トークンが無効または期限切れの場合はクリア
+  if (cachedToken) {
+    console.log('🔄 [fetchConnectToken] トークンが期限切れのため更新します');
+    cachedToken = '';
+    tokenExpiry = 0;
   }
   
   // 環境変数のデバッグ用ログ（セキュリティ考慮）
@@ -46,12 +58,23 @@ async function fetchConnectToken(): Promise<string> {
   try {
     const res = await axios.get(connectTokenUrl);
     cachedToken = res.data.token;
+    
+    // トークンの有効期限を設定（デフォルトで30分後）
+    // レスポンスにexpires_inが含まれている場合はそれを使用
+    const expiresIn = res.data.expires_in || 1800; // デフォルト30分
+    tokenExpiry = now + (expiresIn * 1000);
+    
     console.log('✅ [fetchConnectToken] トークン取得成功');
+    console.log(`⏰ [fetchConnectToken] トークン有効期限: ${new Date(tokenExpiry).toLocaleString()}`);
     return cachedToken;
   } catch (error: any) {
     console.error('❌ [fetchConnectToken] トークン取得エラー:', error.message);
     console.error('  - ステータス:', error.response?.status);
     console.error('  - レスポンス:', error.response?.data);
+    
+    // エラー時はキャッシュをクリア
+    cachedToken = '';
+    tokenExpiry = 0;
     throw error;
   }
 }
@@ -115,8 +138,33 @@ export async function handleSlackMessage(message: any, say: SayFn) {
     console.log("✅ Step 5: OpenAI 応答を受信", response);
   } catch (e: any) {
     console.error("❌ [OpenAI APIエラー]", e);
-    await say('⚠️ OpenAI APIエラー: ' + (e.message || e.toString()));
-    return;
+    
+    // 401エラーの場合はトークンを更新して再試行
+    if (e.message && e.message.includes('401') && e.message.includes('invalid')) {
+      console.log("🔄 [OpenAI API] 401エラー検出、トークンを更新して再試行");
+      cachedToken = '';
+      tokenExpiry = 0;
+      
+      try {
+        const newToken = await fetchConnectToken();
+        const newGmailTool = getMcpTool('gmail', newToken);
+        const newCalendarTool = getMcpTool('calendar', newToken);
+        
+        response = await openai.responses.create({
+          model: 'gpt-4.1',
+          input: getHistory(userId).join('\n'),
+          tools: [newGmailTool, newCalendarTool],
+        });
+        console.log("✅ Step 5: トークン更新後のOpenAI 応答を受信", response);
+      } catch (retryError: any) {
+        console.error("❌ [OpenAI API再試行エラー]", retryError);
+        await say('⚠️ トークン更新後もOpenAI APIエラーが発生しました: ' + (retryError.message || retryError.toString()));
+        return;
+      }
+    } else {
+      await say('⚠️ OpenAI APIエラー: ' + (e.message || e.toString()));
+      return;
+    }
   }
 
   let text = response.output_text ?? '';
@@ -185,7 +233,33 @@ export async function handleSlackMessage(message: any, say: SayFn) {
         // draft使用後は削除
         delete draftMap[userId][useDraftId];
       } catch (e: any) {
-        await say('⚠️ Gmail API連携エラー: ' + (e.message || e.toString()));
+        console.error('❌ [Gmail API連携エラー]', e);
+        
+        // 401エラーの場合はトークンを更新して再試行
+        if (e.response?.status === 401 || (e.message && e.message.includes('401'))) {
+          console.log("🔄 [Gmail API] 401エラー検出、トークンを更新して再試行");
+          cachedToken = '';
+          tokenExpiry = 0;
+          
+          try {
+            const newToken = await fetchConnectToken();
+            let retryResult;
+            if (/保存して/.test(message.text)) {
+              retryResult = await createGmailDraft(newToken, draft);
+              await say(`✅ 下書きを保存しました（draftId: ${useDraftId}）`);
+            } else if (/送信して/.test(message.text)) {
+              retryResult = await sendGmailMail(newToken, draft);
+              await say(`✅ メールを送信しました（draftId: ${useDraftId}）`);
+            }
+            // draft使用後は削除
+            delete draftMap[userId][useDraftId];
+          } catch (retryError: any) {
+            console.error("❌ [Gmail API再試行エラー]", retryError);
+            await say('⚠️ トークン更新後もGmail API連携エラーが発生しました: ' + (retryError.message || retryError.toString()));
+          }
+        } else {
+          await say('⚠️ Gmail API連携エラー: ' + (e.message || e.toString()));
+        }
       }
     } else {
       await say('📝 ' + text + '\n\n問題なければ「送信して」「ラベルをつけて」など返信してね。やめる場合は返信不要だよ。');
