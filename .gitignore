@@ -22,4 +22,5 @@ Thumbs.db
 
 .env.local 
 
-backup/ 
+backup/
+MemOS/
